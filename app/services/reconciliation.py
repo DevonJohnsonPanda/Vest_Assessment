@@ -11,7 +11,7 @@ def reconcile(report_date: date) -> dict:
     session = get_session()
     try:
         trades = (
-            session.execute(select(Trade).where(Trade.trade_date == report_date))
+            session.execute(select(Trade).where(Trade.trade_date <= report_date))
             .scalars()
             .all()
         )
