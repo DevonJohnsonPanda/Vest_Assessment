@@ -22,14 +22,13 @@ def reconcile(report_date: date) -> dict:
             .all()
         )
 
-        # Aggregate trades by (account_id, ticker)
-        trade_agg: dict[tuple[str, str], dict[str, float]] = {}
+        # Aggregate trade shares by (account_id, ticker)
+        trade_agg: dict[tuple[str, str], float] = {}
         for t in trades:
             key = (t.account_id, t.ticker)
             if key not in trade_agg:
-                trade_agg[key] = {"shares": 0.0, "market_value": 0.0}
-            trade_agg[key]["shares"] += t.quantity
-            trade_agg[key]["market_value"] += t.market_value or 0.0
+                trade_agg[key] = 0.0
+            trade_agg[key] += t.quantity
 
         # Index positions
         pos_map: dict[tuple[str, str], Position] = {}
@@ -52,8 +51,7 @@ def reconcile(report_date: date) -> dict:
                     {
                         "account_id": account_id,
                         "ticker": ticker,
-                        "trade_shares": trade_agg[key]["shares"],
-                        "trade_market_value": round(trade_agg[key]["market_value"], 2),
+                        "trade_shares": trade_agg[key],
                     }
                 )
             elif in_positions and not in_trades:
@@ -66,23 +64,20 @@ def reconcile(report_date: date) -> dict:
                     }
                 )
             else:
-                ta = trade_agg[key]
+                trade_shares = trade_agg[key]
                 pos = pos_map[key]
-                share_diff = round(ta["shares"] - pos.shares, 6)
-                value_diff = round(ta["market_value"] - pos.market_value, 2)
+                share_diff = round(trade_shares - pos.shares, 6)
 
                 entry = {
                     "account_id": account_id,
                     "ticker": ticker,
-                    "trade_shares": ta["shares"],
+                    "trade_shares": trade_shares,
                     "position_shares": pos.shares,
                     "share_difference": share_diff,
-                    "trade_market_value": round(ta["market_value"], 2),
                     "position_market_value": pos.market_value,
-                    "value_difference": value_diff,
                 }
 
-                if share_diff != 0 or value_diff != 0:
+                if share_diff != 0:
                     discrepancies.append(entry)
                 else:
                     matches.append(entry)
